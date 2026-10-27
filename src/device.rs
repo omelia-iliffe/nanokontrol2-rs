@@ -53,11 +53,17 @@ impl fmt::Display for Error {
             Error::Send(e) => write!(f, "MIDI send failed: {e}"),
             Error::Timeout => write!(f, "device did not answer the SysEx request"),
             Error::Rejected(reply) => write!(f, "device rejected the SysEx request: {reply:?}"),
-            Error::NotCcMode(mode) => write!(
-                f,
-                "device is in {mode:?} mode, not CC mode; plug it in while holding SET MARKER \
-                 and CYCLE, or call set_control_mode"
-            ),
+            Error::NotCcMode(mode) => {
+                match mode {
+                    Some(mode) => write!(f, "device is in {mode} mode, not CC mode")?,
+                    None => write!(f, "device is in an unknown mode, not CC mode")?,
+                }
+                write!(
+                    f,
+                    "; plug it in while holding SET MARKER and CYCLE, or switch it with \
+                     connect_unchecked and set_control_mode"
+                )
+            }
         }
     }
 }
@@ -190,7 +196,7 @@ impl NanoKontrol2 {
         ))
     }
 
-    /// The assignments events are decoded with.
+    /// The assignments used to decode events.
     pub fn map(&self) -> Map {
         lock(&self.map).clone()
     }
@@ -200,7 +206,7 @@ impl NanoKontrol2 {
         *lock(&self.map) = map;
     }
 
-    /// Reads the device's scene and decodes with its assignments from now on. Fails with
+    /// Reads the current scene and uses its control assignments. Fails with
     /// [`Error::NotCcMode`] if the device is in a DAW mode.
     pub fn load_scene(&mut self) -> Result<(), Error> {
         let (_, scene) = self.read_scene()?;
@@ -337,4 +343,17 @@ fn find_port<T: midir::MidiIO>(io: &T, ports: &[T::Port], name: &str) -> Option<
 /// Ignores poisoning: the guarded values are plain data a panic cannot leave inconsistent.
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn not_cc_mode_message() {
+        let msg = Error::NotCcMode(Some(ControlMode::DigitalPerformer)).to_string();
+        assert!(msg.starts_with("device is in Digital Performer mode, not CC mode; "));
+        let msg = Error::NotCcMode(None).to_string();
+        assert!(msg.starts_with("device is in an unknown mode"));
+    }
 }

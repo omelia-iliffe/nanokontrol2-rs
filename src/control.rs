@@ -7,7 +7,6 @@ use std::fmt;
 pub struct Strip(u8);
 
 impl Strip {
-    /// Number of strips.
     pub const COUNT: usize = 8;
 
     /// Returns `None` if `index` is 8 or more.
@@ -71,7 +70,6 @@ const TRANSPORT: [Button; 11] = [
 ];
 
 impl Button {
-    /// Number of buttons.
     pub const COUNT: usize = 3 * Strip::COUNT + TRANSPORT.len();
 
     /// A dense index in `0..Button::COUNT`, for per-button tables.

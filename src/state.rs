@@ -50,7 +50,7 @@ impl State {
         self.knobs[strip.index()]
     }
 
-    /// Whether `button` is held, or on if it is set to Toggle.
+    /// Whether the button is held, or enabled in Toggle mode.
     pub fn is_pressed(&self, button: Button) -> bool {
         self.pressed[button.index()]
     }

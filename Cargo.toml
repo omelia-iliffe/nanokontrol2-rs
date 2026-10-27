@@ -2,7 +2,7 @@
 name = "nanokontrol2"
 version = "0.1.0"
 edition = "2024"
-description = "Korg nanoKONTROL2 driver: typed events, LED control and a state mirror"
+description = "Korg nanoKONTROL2 driver with typed events, LED control, and control state"
 readme = "README.md"
 rust-version = "1.85"
 license = "MIT OR Apache-2.0"

@@ -11,19 +11,35 @@ use nanokontrol2::sysex::{ControlMode, LedMode};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
-    let save = args.last() == Some(&"save");
+    let (args, save) = match args.split_last() {
+        Some((&"save", rest)) => (rest, true),
+        _ => (&args[..], false),
+    };
 
     let (mut nk, _events) = NanoKontrol2::connect_unchecked(NanoKontrol2::PORT_NAME)?;
-    match args.as_slice() {
+    match args {
         [] => {}
-        ["led", mode, ..] => nk.set_led_mode(led_mode(mode)?, save)?,
-        ["mode", mode, ..] => nk.set_control_mode(control_mode(mode)?, save)?,
-        _ => return Err("expected `led <mode>` or `mode <mode>`".into()),
+        ["led", mode] => nk.set_led_mode(led_mode(mode)?, save)?,
+        ["mode", mode] => nk.set_control_mode(control_mode(mode)?, save)?,
+        _ => {
+            eprintln!("{USAGE}");
+            std::process::exit(2);
+        }
     }
     let (channel, scene) = nk.read_scene()?;
-    println!("global channel {}: {scene:?}", channel + 1);
+    let mode = scene
+        .control_mode()
+        .map_or("unknown".to_string(), |m| m.to_string());
+    println!(
+        "channel {}, mode {mode}, LED {}",
+        channel + 1,
+        scene.led_mode()
+    );
     Ok(())
 }
+
+const USAGE: &str =
+    "usage: scene [led external|internal | mode cc|cubase|dp|live|protools|sonar] [save]";
 
 fn led_mode(name: &str) -> Result<LedMode, String> {
     match name {

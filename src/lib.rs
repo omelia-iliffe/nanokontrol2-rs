@@ -1,8 +1,8 @@
 //! Korg nanoKONTROL2 driver for CC mode: typed events, LED control, and a mirror of the
 //! control state.
 //!
-//! [`NanoKontrol2::connect`] reads the device's scene over SysEx and decodes with its CC
-//! assignments, so scenes edited in Korg Kontrol Editor work unchanged. The device must be in
+//! [`NanoKontrol2::connect`] reads the device's scene over SysEx and uses its control
+//! assignments, including changes made in Korg Kontrol Editor. The device must be in
 //! CC mode (plug it in while holding SET MARKER and CYCLE, or call
 //! [`NanoKontrol2::set_control_mode`]); its DAW modes are not decoded.
 //!

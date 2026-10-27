@@ -138,12 +138,12 @@ const GROUP_REC: usize = 25;
 const TRANSPORT_CHANNEL: usize = 251;
 const TRANSPORT_START: usize = 252;
 const TRANSPORT_LEN: usize = 6;
-/// A group or transport channel of 16 means "use the global channel".
+// A group or transport channel of 16 means "use the global channel".
 const USE_GLOBAL_CHANNEL: u8 = 16;
 
 impl Map {
-    /// The assignments in `scene`. Toggle behaviour is not recorded here: a toggled button
-    /// reports its on and off values as presses and releases.
+    /// The assignments in `scene`. Toggle behaviour is not stored; on and off values become
+    /// `pressed: true` and `false`.
     pub fn from_scene(scene: &Scene) -> Self {
         let d = &scene.0;
         let global = scene.global_channel();

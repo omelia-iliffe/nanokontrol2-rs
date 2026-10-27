@@ -23,9 +23,9 @@ const FUNC_LOAD_ERROR: u8 = 0x24;
 
 /// Length of a scene's parameters (TABLE 1).
 pub const SCENE_LEN: usize = 339;
-/// Length of a scene once packed into 7-bit MIDI bytes.
+// Length of a scene once packed into 7-bit MIDI bytes.
 const PACKED_LEN: usize = 388;
-/// "Num of Data" in a scene dump: the function ID byte plus the packed scene.
+// "Num of Data" in a scene dump: the function ID byte plus the packed scene.
 const DUMP_DATA_LEN: usize = 1 + PACKED_LEN;
 
 const LED_MODE: usize = 2;
@@ -41,8 +41,7 @@ pub enum LedMode {
     External,
 }
 
-/// The device's operating mode, as stored in the scene. The power-up button combinations set
-/// the same value.
+/// The device's operating mode, as stored in the scene.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ControlMode {
     Cc,
@@ -51,6 +50,28 @@ pub enum ControlMode {
     Live,
     ProTools,
     Sonar,
+}
+
+impl fmt::Display for ControlMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            ControlMode::Cc => "CC",
+            ControlMode::Cubase => "Cubase",
+            ControlMode::DigitalPerformer => "Digital Performer",
+            ControlMode::Live => "Live",
+            ControlMode::ProTools => "Pro Tools",
+            ControlMode::Sonar => "SONAR",
+        })
+    }
+}
+
+impl fmt::Display for LedMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            LedMode::Internal => "Internal",
+            LedMode::External => "External",
+        })
+    }
 }
 
 const CONTROL_MODES: [ControlMode; 6] = [
