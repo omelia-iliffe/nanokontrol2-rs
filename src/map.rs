@@ -1,4 +1,4 @@
-//! Decoding the device's CC-mode MIDI into [`Event`]s and encoding LED messages.
+//! Decoding the device's MIDI into [`Event`]s and encoding LED messages.
 
 use crate::control::{Button, Strip};
 use crate::sysex::Scene;
@@ -42,7 +42,7 @@ impl ControlAssign {
         }
     }
 
-    fn normalise(&self, value: u8) -> f32 {
+    fn normalise(self, value: u8) -> f32 {
         if self.min == self.max {
             return 0.0;
         }
@@ -51,6 +51,7 @@ impl ControlAssign {
     }
 }
 
+/// What a button sends.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AssignType {
     ControlChange,
@@ -86,7 +87,9 @@ impl ButtonAssign {
 /// factory scene. [`Map::from_scene`] reads a scene edited in Korg Kontrol Editor.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Map {
+    /// Indexed by [`Strip::index`].
     pub fader: [Option<ControlAssign>; Strip::COUNT],
+    /// Indexed by [`Strip::index`].
     pub knob: [Option<ControlAssign>; Strip::COUNT],
     /// Indexed by [`Button::index`].
     pub button: [Option<ButtonAssign>; Button::COUNT],
@@ -186,13 +189,13 @@ impl Map {
         }
         // The scene lists the transport buttons in the same order as Button::index.
         let ch = channel(d[TRANSPORT_CHANNEL]);
-        for t in 0..Button::COUNT - 3 * Strip::COUNT {
-            let b = Button::from_index(3 * Strip::COUNT + t).expect("transport index in range");
+        for (t, b) in Button::all().skip(3 * Strip::COUNT).enumerate() {
             map.button[b.index()] = button(TRANSPORT_START + TRANSPORT_LEN * t, ch);
         }
         map
     }
 
+    /// Decodes one MIDI message from the device.
     pub fn decode(&self, msg: &[u8]) -> Event {
         self.decode_mapped(msg)
             .unwrap_or_else(|| Event::Unmapped(msg.to_vec()))
@@ -205,22 +208,17 @@ impl Map {
         let channel = status & 0x0F;
         let (kind, pressed) = match status & 0xF0 {
             CONTROL_CHANGE => {
-                let at = |c: &ControlAssign| c.channel == channel && c.cc == number;
-                if let Some(i) = self.fader.iter().position(|c| c.as_ref().is_some_and(at)) {
-                    let c = self.fader[i]?;
-                    let strip = Strip::new(i as u8)?;
-                    return Some(Event::Fader {
-                        strip,
-                        value: c.normalise(value),
-                    });
+                let find = |table: &[Option<ControlAssign>; Strip::COUNT]| {
+                    Strip::all().find_map(|s| {
+                        let c = table[s.index()]?;
+                        (c.channel == channel && c.cc == number).then(|| (s, c.normalise(value)))
+                    })
+                };
+                if let Some((strip, value)) = find(&self.fader) {
+                    return Some(Event::Fader { strip, value });
                 }
-                if let Some(i) = self.knob.iter().position(|c| c.as_ref().is_some_and(at)) {
-                    let c = self.knob[i]?;
-                    let strip = Strip::new(i as u8)?;
-                    return Some(Event::Knob {
-                        strip,
-                        value: c.normalise(value),
-                    });
+                if let Some((strip, value)) = find(&self.knob) {
+                    return Some(Event::Knob { strip, value });
                 }
                 (AssignType::ControlChange, None)
             }
@@ -228,14 +226,12 @@ impl Map {
             NOTE_OFF => (AssignType::Note, Some(false)),
             _ => return None,
         };
-        let i = self.button.iter().position(|b| {
-            b.is_some_and(|b| b.channel == channel && b.kind == kind && b.number == number)
-        })?;
-        let b = self.button[i]?;
-        let pressed = pressed.unwrap_or(value != b.off);
-        Some(Event::Button {
-            button: Button::from_index(i)?,
-            pressed,
+        Button::all().find_map(|button| {
+            let b = self.button[button.index()]?;
+            (b.channel == channel && b.kind == kind && b.number == number).then(|| Event::Button {
+                button,
+                pressed: pressed.unwrap_or(value != b.off),
+            })
         })
     }
 
@@ -264,7 +260,7 @@ mod tests {
     }
 
     #[test]
-    fn cc_factory_scene() {
+    fn factory_scene() {
         let p = Map::default();
         assert_eq!(
             p.decode(&[0xB0, 2, 127]),
@@ -297,7 +293,7 @@ mod tests {
     }
 
     #[test]
-    fn cc_ignores_other_channels() {
+    fn ignores_other_channels() {
         assert_eq!(
             Map::default().decode(&[0xB1, 0, 64]),
             Event::Unmapped(vec![0xB1, 0, 64])
@@ -305,7 +301,7 @@ mod tests {
     }
 
     #[test]
-    fn cc_led() {
+    fn led_messages() {
         let p = Map::default();
         assert_eq!(
             p.led_message(Button::Rec(strip(3)), true),
@@ -315,7 +311,7 @@ mod tests {
     }
 
     #[test]
-    fn cc_map_from_factory_scene_matches_default() {
+    fn map_from_factory_scene_matches_default() {
         // The factory scene, laid out per TABLE 1.
         let mut d = [0; crate::sysex::SCENE_LEN];
         let mut put = |at: usize, vals: &[u8]| d[at..at + vals.len()].copy_from_slice(vals);
@@ -338,7 +334,7 @@ mod tests {
     }
 
     #[test]
-    fn cc_custom_assignments() {
+    fn custom_assignments() {
         let mut map = Map::default();
         map.fader[0] = Some(ControlAssign {
             channel: 2,

@@ -7,7 +7,9 @@ use crate::map::Event;
 /// `None` until it is first moved.
 #[derive(Debug, Clone, PartialEq)]
 pub struct State {
+    /// Indexed by [`Strip::index`], 0.0 to 1.0.
     pub faders: [Option<f32>; Strip::COUNT],
+    /// Indexed by [`Strip::index`], 0.0 to 1.0.
     pub knobs: [Option<f32>; Strip::COUNT],
     /// Indexed by [`Button::index`].
     pub pressed: [bool; Button::COUNT],
@@ -28,6 +30,7 @@ impl Default for State {
 }
 
 impl State {
+    /// Updates the mirror with `event`.
     pub fn apply(&mut self, event: &Event) {
         match *event {
             Event::Fader { strip, value } => self.faders[strip.index()] = Some(value),
@@ -37,18 +40,22 @@ impl State {
         }
     }
 
+    /// `None` until the fader is first moved.
     pub fn fader(&self, strip: Strip) -> Option<f32> {
         self.faders[strip.index()]
     }
 
+    /// `None` until the knob is first moved.
     pub fn knob(&self, strip: Strip) -> Option<f32> {
         self.knobs[strip.index()]
     }
 
+    /// Whether `button` is held, or on if it is set to Toggle.
     pub fn is_pressed(&self, button: Button) -> bool {
         self.pressed[button.index()]
     }
 
+    /// The LED state last sent.
     pub fn led(&self, button: Button) -> bool {
         self.leds[button.index()]
     }

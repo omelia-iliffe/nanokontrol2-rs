@@ -32,6 +32,7 @@ const LED_MODE: usize = 2;
 const CONTROL_MODE: usize = 1;
 const GLOBAL_CHANNEL: usize = 0;
 
+/// The scene's LED Mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LedMode {
     /// The device lights each button's LED itself and ignores LED messages.
@@ -76,22 +77,24 @@ impl fmt::Debug for Scene {
 }
 
 impl Scene {
-    /// 0 to 15.
+    /// The global MIDI channel, 0 to 15.
     pub fn global_channel(&self) -> u8 {
         self.0[GLOBAL_CHANNEL]
     }
 
-    /// `None` for a value outside the documented range.
+    /// The operating mode, or `None` for a value outside Korg's documented range.
     pub fn control_mode(&self) -> Option<ControlMode> {
         CONTROL_MODES
             .get(usize::from(self.0[CONTROL_MODE]))
             .copied()
     }
 
+    /// Sets the operating mode.
     pub fn set_control_mode(&mut self, mode: ControlMode) {
         self.0[CONTROL_MODE] = mode as u8;
     }
 
+    /// The LED mode.
     pub fn led_mode(&self) -> LedMode {
         if self.0[LED_MODE] == 0 {
             LedMode::Internal
@@ -100,6 +103,7 @@ impl Scene {
         }
     }
 
+    /// Sets the LED mode.
     pub fn set_led_mode(&mut self, mode: LedMode) {
         self.0[LED_MODE] = mode as u8;
     }
@@ -109,15 +113,16 @@ impl Scene {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Reply {
     /// Answer to [`search_device_request`], carrying the device's global MIDI channel.
-    SearchDevice {
-        global_channel: u8,
-    },
+    SearchDevice { global_channel: u8 },
+    /// Answer to [`scene_dump_request`].
     Scene(Box<Scene>),
-    /// The device accepted a scene dump.
+    /// The device accepted a [`scene_dump`].
     LoadCompleted,
+    /// The device rejected a [`scene_dump`].
     LoadError,
     /// The device saved its scene to memory.
     WriteCompleted,
+    /// The device failed to save its scene.
     WriteError,
 }
 
@@ -139,6 +144,7 @@ pub fn search_device_request(echo: u8) -> Vec<u8> {
     vec![0xF0, KORG, 0x50, 0x00, echo & 0x7F, 0xF7]
 }
 
+/// Asks for the device's current scene.
 pub fn scene_dump_request(global_channel: u8) -> Vec<u8> {
     two_byte_request(global_channel, FUNC_SCENE_DUMP_REQUEST)
 }

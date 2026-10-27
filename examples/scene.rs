@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     let save = args.last() == Some(&"save");
 
-    let (mut nk, _events) = NanoKontrol2::connect_unchecked("nanokontrol2")?;
+    let (mut nk, _events) = NanoKontrol2::connect_unchecked(NanoKontrol2::PORT_NAME)?;
     match args.as_slice() {
         [] => {}
         ["led", mode, ..] => nk.set_led_mode(led_mode(mode)?, save)?,

@@ -7,6 +7,7 @@ use std::fmt;
 pub struct Strip(u8);
 
 impl Strip {
+    /// Number of strips.
     pub const COUNT: usize = 8;
 
     /// Returns `None` if `index` is 8 or more.
@@ -18,10 +19,12 @@ impl Strip {
         }
     }
 
+    /// 0 to 7, from the left.
     pub const fn index(self) -> usize {
         self.0 as usize
     }
 
+    /// Every strip, from the left.
     pub fn all() -> impl Iterator<Item = Strip> {
         (0..Self::COUNT as u8).map(Strip)
     }
@@ -68,6 +71,7 @@ const TRANSPORT: [Button; 11] = [
 ];
 
 impl Button {
+    /// Number of buttons.
     pub const COUNT: usize = 3 * Strip::COUNT + TRANSPORT.len();
 
     /// A dense index in `0..Button::COUNT`, for per-button tables.
@@ -102,6 +106,7 @@ impl Button {
         }
     }
 
+    /// Every button, in [`Button::index`] order.
     pub fn all() -> impl Iterator<Item = Button> {
         (0..Self::COUNT).filter_map(Button::from_index)
     }

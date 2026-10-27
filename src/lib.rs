@@ -29,6 +29,10 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
+#![forbid(unsafe_code)]
+// The crate docs link to the midir-only device API.
+#![cfg_attr(not(feature = "midir"), allow(rustdoc::broken_intra_doc_links))]
+
 mod control;
 #[cfg(feature = "midir")]
 mod device;
@@ -43,3 +47,7 @@ pub use map::{AssignType, ButtonAssign, ControlAssign, Event, Map};
 #[cfg(feature = "midir")]
 pub use midir;
 pub use state::State;
+
+#[cfg(all(doctest, feature = "midir"))]
+#[doc = include_str!("../README.md")]
+struct ReadmeDoctests;

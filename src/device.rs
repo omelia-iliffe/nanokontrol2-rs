@@ -2,7 +2,7 @@
 
 use std::fmt;
 use std::sync::mpsc::{self, Receiver};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
 use midir::{
@@ -17,13 +17,15 @@ use crate::state::State;
 use crate::sysex::{self, ControlMode, LedMode, Reply, Scene};
 
 const CLIENT_NAME: &str = "nanokontrol2-rs";
-const PORT_MATCH: &str = "nanokontrol2";
 const SYSEX_TIMEOUT: Duration = Duration::from_secs(2);
 
+/// Errors from [`NanoKontrol2`].
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
-    /// No MIDI port whose name contains the search string.
+    /// No MIDI port whose name contains `name`.
     PortNotFound {
+        /// Whether the missing port is the input rather than the output.
         input: bool,
         name: String,
     },
@@ -60,7 +62,15 @@ impl fmt::Display for Error {
     }
 }
 
-impl std::error::Error for Error {}
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::Init(e) => Some(e),
+            Error::Send(e) => Some(e),
+            _ => None,
+        }
+    }
+}
 
 impl From<midir::InitError> for Error {
     fn from(e: midir::InitError) -> Self {
@@ -87,11 +97,20 @@ pub struct NanoKontrol2 {
     replies: Receiver<Reply>,
 }
 
+impl fmt::Debug for NanoKontrol2 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("NanoKontrol2").finish_non_exhaustive()
+    }
+}
+
 impl NanoKontrol2 {
-    /// Connects to the first input and output ports whose names contain "nanoKONTROL2", then
-    /// [`load_scene`](Self::load_scene).
+    /// The port name [`connect`](Self::connect) looks for, matched case-insensitively.
+    pub const PORT_NAME: &str = "nanoKONTROL2";
+
+    /// Connects to the first input and output ports whose names contain
+    /// [`PORT_NAME`](Self::PORT_NAME), then [`load_scene`](Self::load_scene).
     pub fn connect() -> Result<(Self, Receiver<Event>), Error> {
-        Self::connect_matching(PORT_MATCH)
+        Self::connect_matching(Self::PORT_NAME)
     }
 
     /// Like [`connect`](Self::connect), for the first ports whose names contain `name`,
@@ -148,8 +167,7 @@ impl NanoKontrol2 {
                         }
                         let event = lock(&map).decode(msg);
                         lock(&state).apply(&event);
-                        // The receiver being dropped only means nobody wants events; the
-                        // state mirror is still kept current.
+                        // A dropped receiver is fine: the state mirror still updates.
                         let _ = tx.send(event);
                     },
                     (),
@@ -172,6 +190,7 @@ impl NanoKontrol2 {
         ))
     }
 
+    /// The assignments events are decoded with.
     pub fn map(&self) -> Map {
         lock(&self.map).clone()
     }
@@ -199,6 +218,7 @@ impl NanoKontrol2 {
         lock(&self.state).clone()
     }
 
+    /// Switches `button`'s LED. Needs LED Mode External; see [`set_led_mode`](Self::set_led_mode).
     pub fn set_led(&mut self, button: Button, on: bool) -> Result<(), Error> {
         let msg = lock(&self.map).led_message(button, on);
         if let Some(msg) = msg {
@@ -208,6 +228,7 @@ impl NanoKontrol2 {
         Ok(())
     }
 
+    /// Switches every LED.
     pub fn set_all_leds(&mut self, on: bool) -> Result<(), Error> {
         Button::all()
             .filter(|b| b.has_led())
@@ -260,7 +281,7 @@ impl NanoKontrol2 {
     pub fn write_scene(&mut self, channel: u8, scene: &Scene, save: bool) -> Result<(), Error> {
         expect(
             self.request(&sysex::scene_dump(channel, scene))?,
-            Reply::LoadCompleted,
+            &Reply::LoadCompleted,
         )?;
         if save {
             self.save_scene(channel)?;
@@ -272,7 +293,7 @@ impl NanoKontrol2 {
     pub fn save_scene(&mut self, channel: u8) -> Result<(), Error> {
         expect(
             self.request(&sysex::scene_write_request(channel))?,
-            Reply::WriteCompleted,
+            &Reply::WriteCompleted,
         )
     }
 
@@ -294,8 +315,8 @@ impl NanoKontrol2 {
     }
 }
 
-fn expect(reply: Reply, wanted: Reply) -> Result<(), Error> {
-    if reply == wanted {
+fn expect(reply: Reply, wanted: &Reply) -> Result<(), Error> {
+    if reply == *wanted {
         Ok(())
     } else {
         Err(Error::Rejected(reply))
@@ -313,8 +334,7 @@ fn find_port<T: midir::MidiIO>(io: &T, ports: &[T::Port], name: &str) -> Option<
         .cloned()
 }
 
-/// The state is plain data with no invariants a panicking holder could break, so a poisoned
-/// lock is still safe to use.
-fn lock<T>(state: &Mutex<T>) -> MutexGuard<'_, T> {
-    state.lock().unwrap_or_else(|e| e.into_inner())
+/// Ignores poisoning: the guarded values are plain data a panic cannot leave inconsistent.
+fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
