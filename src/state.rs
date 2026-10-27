@@ -1,5 +1,5 @@
 use crate::control::{Button, Strip};
-use crate::map::Event;
+use crate::protocol::Event;
 
 /// A mirror of the device's controls, built from the events seen so far.
 ///
@@ -13,8 +13,7 @@ pub struct State {
     pub knobs: [Option<f32>; Strip::COUNT],
     /// Indexed by [`Button::index`].
     pub pressed: [bool; Button::COUNT],
-    /// The LED states last sent to the device, indexed by [`Button::index`]. With LED Mode set
-    /// to Internal, the device drives its own LEDs and this does not reflect them.
+    /// The LED states last sent to the device, indexed by [`Button::index`].
     pub leds: [bool; Button::COUNT],
 }
 
@@ -50,7 +49,7 @@ impl State {
         self.knobs[strip.index()]
     }
 
-    /// Whether the button is held, or enabled in Toggle mode.
+    /// Whether the button is held.
     pub fn is_pressed(&self, button: Button) -> bool {
         self.pressed[button.index()]
     }

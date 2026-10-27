@@ -16,10 +16,9 @@ midir = ["dep:midir"]
 [dependencies]
 midir = { version = "0.11", optional = true }
 
-[[example]]
-name = "monitor"
-required-features = ["midir"]
+[dev-dependencies]
+ctrlc = "3.4"
 
 [[example]]
-name = "scene"
+name = "monitor"
 required-features = ["midir"]

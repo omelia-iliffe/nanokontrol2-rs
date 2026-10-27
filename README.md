@@ -1,10 +1,11 @@
 # nanokontrol2
 
-Rust driver for the Korg nanoKONTROL2 in CC mode. It provides typed control events, LED
-control, and snapshots of the current control state.
+Rust driver for the Korg nanoKONTROL2. It provides typed control events, LED control, and
+snapshots of the current control state.
 
-`NanoKontrol2::connect` reads the device's scene over SysEx and uses its control assignments,
-including changes made in Korg Kontrol Editor.
+`NanoKontrol2::connect` puts the device in Korg's native mode, in which every control sends a
+fixed message and every LED follows the computer. It works regardless of the current mode or
+settings, needs no setup, and leaves the stored settings unchanged.
 
 ## Usage
 
@@ -30,21 +31,19 @@ fn main() -> Result<(), nanokontrol2::Error> {
 
 `nk.state()` returns current fader, knob, button, and LED states.
 
-## Device setup
+## Leaving native mode
 
-The device must use CC mode. Computer-controlled LEDs also require LED Mode External.
+Dropping the connection returns the device to its normal mode. A process that ends without
+dropping it, such as on Ctrl-C, leaves the device in native mode until it is unplugged, so
+other apps continue to receive native-mode messages. Use `exit_handle` in a Ctrl-C handler:
 
-Use the `scene` example to inspect or save these settings. Run it without arguments to show
-the current settings:
-
-```sh
-cargo run --example scene
-cargo run --example scene -- mode cc save
-cargo run --example scene -- led external save
+```rust,ignore
+let exit = nk.exit_handle();
+ctrlc::set_handler(move || {
+    exit.leave_native();
+    std::process::exit(0);
+})?;
 ```
-
-In code, connect with `connect_unchecked` before changing the control mode. Without `save`,
-changes last until the device is unplugged.
 
 Run `cargo run --example monitor` to print events and toggle button LEDs.
 
@@ -53,7 +52,7 @@ TRACK and MARKER buttons have no LEDs. Faders and knobs report 128 positions.
 ## Features
 
 The default `midir` feature provides device discovery and connections. Without it, the crate
-provides MIDI decoding, LED messages, and SysEx helpers for another MIDI backend.
+provides `decode`, `led_message`, and the `sysex` module for use with another MIDI backend.
 
 On Linux, `midir` requires `libasound2-dev` or `alsa-lib`.
 

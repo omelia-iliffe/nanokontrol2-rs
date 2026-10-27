@@ -1,18 +1,13 @@
-//! Korg nanoKONTROL2 driver for CC mode: typed events, LED control, and a mirror of the
-//! control state.
+//! Korg nanoKONTROL2 driver: typed events, LED control, and a mirror of the control state.
 //!
-//! [`NanoKontrol2::connect`] reads the device's scene over SysEx and uses its control
-//! assignments, including changes made in Korg Kontrol Editor. The device must be in
-//! CC mode (plug it in while holding SET MARKER and CYCLE, or call
-//! [`NanoKontrol2::set_control_mode`]); its DAW modes are not decoded.
+//! [`NanoKontrol2::connect`] puts the device in Korg's native mode, in which every control
+//! sends a fixed message and every LED follows the computer. This works regardless of the
+//! current mode or settings and leaves the stored settings unchanged. Dropping the connection
+//! returns the device to its normal mode, as does unplugging it.
 //!
-//! LEDs only follow the computer when the scene's LED Mode is External, which
-//! [`NanoKontrol2::set_led_mode`] can switch. At the factory setting, Internal, the device
-//! lights them itself and ignores [`NanoKontrol2::set_led`].
-//!
-//! [`Map`] is independent of any MIDI backend: feed raw messages to [`Map::decode`] and
-//! send the bytes from [`Map::led_message`] yourself. The default `midir` feature adds
-//! [`NanoKontrol2`], which finds the device and does that for you.
+//! [`decode`] and [`led_message`] are independent of any MIDI backend, with the [`sysex`]
+//! module handling native mode. The default `midir` feature adds device discovery and
+//! connections through [`NanoKontrol2`].
 //!
 //! ```no_run
 //! # #[cfg(feature = "midir")] {
@@ -36,16 +31,16 @@
 mod control;
 #[cfg(feature = "midir")]
 mod device;
-mod map;
+mod protocol;
 mod state;
 pub mod sysex;
 
 pub use control::{Button, Strip};
 #[cfg(feature = "midir")]
-pub use device::{Error, NanoKontrol2};
-pub use map::{AssignType, ButtonAssign, ControlAssign, Event, Map};
+pub use device::{Error, ExitHandle, NanoKontrol2};
 #[cfg(feature = "midir")]
 pub use midir;
+pub use protocol::{Event, decode, led_message};
 pub use state::State;
 
 #[cfg(all(doctest, feature = "midir"))]
