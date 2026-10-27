@@ -1,0 +1,23 @@
+[package]
+name = "nanokontrol2"
+version = "0.1.0"
+edition = "2024"
+description = "Korg nanoKONTROL2 driver: typed events, LED control and a state mirror, for CC mode and Mackie Control DAW mode"
+license = "MIT OR Apache-2.0"
+keywords = ["midi", "korg", "nanokontrol", "controller", "mackie"]
+categories = ["multimedia::audio", "hardware-support"]
+
+[features]
+default = ["midir"]
+midir = ["dep:midir"]
+
+[dependencies]
+midir = { version = "0.11", optional = true }
+
+[[example]]
+name = "monitor"
+required-features = ["midir"]
+
+[[example]]
+name = "scene"
+required-features = ["midir"]
